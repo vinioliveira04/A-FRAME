@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>NEON HUNT — WebAR Game</title>
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <!-- AR.js (marker-based) -->
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Orbitron:wght@700;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #07070d;
+      font-family: 'Space Mono', monospace;
+      color: #e8faff;
+    }
+
+    /* ============ TELA INICIAL ============ */
+    #intro {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background:
+        radial-gradient(ellipse at 20% 0%, rgba(255, 0, 170, 0.25), transparent 50%),
+        radial-gradient(ellipse at 80% 100%, rgba(0, 255, 200, 0.25), transparent 50%),
+        linear-gradient(180deg, #07070d 0%, #0d0d1a 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      text-align: center;
+    }
+
+    #intro::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,200,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,200,0.06) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+      pointer-events: none;
+    }
+
+    #intro .content {
+      position: relative;
+      z-index: 1;
+      max-width: 520px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border: 1px solid rgba(0, 255, 200, 0.4);
+      border-radius: 999px;
+      font-size: 11px;
+      letter-spacing: 0.3em;
+      color: #00ffc8;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: clamp(42px, 12vw, 72px);
+      letter-spacing: 0.04em;
+      line-height: 0.95;
+      background: linear-gradient(135deg, #ff00aa 0%, #00ffc8 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 8px;
+    }
+
+    h1 .glitch {
+      display: inline-block;
+      animation: glitch 3s infinite;
+    }
+
+    @keyframes glitch {
+      0%, 92%, 100% { transform: translate(0); }
+      94% { transform: translate(-2px, 1px); }
+      96% { transform: translate(2px, -1px); }
+      98% { transform: translate(-1px, -1px); }
+    }
+
+    .subtitle {
+      font-size: 13px;
+      letter-spacing: 0.25em;
+      color: rgba(232, 250, 255, 0.5);
+      text-transform: uppercase;
+      margin-bottom: 40px;
+    }
+
+    .instructions {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 32px;
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .instructions strong {
+      color: #00ffc8;
+      letter-spacing: 0.05em;
+    }
+
+    .marker-link {
+      display: inline-block;
+      color: #ff00aa;
+      text-decoration: none;
+      border-bottom: 1px dashed #ff00aa;
+      padding-bottom: 1px;
+    }
+
+    button#startBtn {
+      background: linear-gradient(135deg, #ff00aa, #00ffc8);
+      color: #07070d;
+      border: none;
+      padding: 18px 48px;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 16px;
+      letter-spacing: 0.2em;
+      border-radius: 999px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 10px 40px rgba(255, 0, 170, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    button#startBtn:hover { transform: translateY(-2px); box-shadow: 0 14px 50px rgba(0, 255, 200, 0.5); }
+    button#startBtn:active { transform: translateY(0); }
+
+    /* ============ HUD DURANTE O JOGO ============ */
+    #hud {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: none;
+      padding: 20px;
+      pointer-events: none;
+      justify-content: space-between;
+      align-items: flex-start;
+      font-family: 'Orbitron', sans-serif;
+    }
+
+    #hud.visible { display: flex; }
+
+    .hud-box {
+      background: rgba(7, 7, 13, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 255, 200, 0.3);
+      border-radius: 12px;
+      padding: 12px 18px;
+      min-width: 110px;
+    }
+
+    .hud-label {
+      font-size: 10px;
+      letter-spacing: 0.3em;
+      color: rgba(0, 255, 200, 0.7);
+      margin-bottom: 4px;
+    }
+
+    .hud-value {
+      font-size: 28px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: 0.05em;
+    }
+
+    #timer.danger .hud-value { color: #ff00aa; animation: pulse 0.5s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    #marker-hint {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(7, 7, 13, 0.8);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 0, 170, 0.4);
+      padding: 12px 20px;
+      border-radius: 999px;
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      color: #ff00aa;
+      z-index: 100;
+      display: none;
+      text-transform: uppercase;
+    }
+    #marker-hint.visible { display: block; }
+
+    /* ============ TELA FINAL ============ */
+    #gameover {
+      position: fixed;
+      inset: 0;
+      z-index: 1001;
+      background: rgba(7, 7, 13, 0.92);
+      backdrop-filter: blur(20px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      text-align: center;
+    }
+    #gameover.visible { display: flex; }
+
+    #gameover h2 {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 48px;
+      letter-spacing: 0.05em;
+      color: #00ffc8;
+      margin-bottom: 16px;
+    }
+
+    .final-score {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 96px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #ff00aa, #00ffc8);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin: 24px 0;
+      line-height: 1;
+    }
+
+    .rank {
+      font-size: 14px;
+      letter-spacing: 0.3em;
+      color: rgba(232, 250, 255, 0.6);
+      margin-bottom: 40px;
+      text-transform: uppercase;
+    }
+
+    .rank span { color: #ff00aa; font-weight: 700; }
+
+    /* esconde o logo do A-Frame */
+    .a-enter-vr { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- ============ TELA INICIAL ============ -->
+  <div id="intro">
+    <div class="content">
+      <span class="badge">◆ WebAR Experience</span>
+      <h1>NEON<br/><span class="glitch">HUNT</span></h1>
+      <p class="subtitle">acerte · pontue · sobreviva</p>
+
+      <div class="instructions">
+        <p>1. <strong>IMPRIMA</strong> ou abra no PC o marcador <a class="marker-link" href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/HIRO.jpg" target="_blank">HIRO</a>.</p>
+        <p>2. <strong>PERMITA</strong> o acesso à câmera quando solicitado.</p>
+        <p>3. <strong>APONTE</strong> a câmera para o marcador.</p>
+        <p>4. <strong>TOQUE</strong> nos alvos neon antes que eles desapareçam.</p>
+        <p>⏱ Você tem <strong>60 segundos</strong>.</p>
+      </div>
+
+      <button id="startBtn">INICIAR</button>
+    </div>
+  </div>
+
+  <!-- ============ HUD ============ -->
+  <div id="hud">
+    <div class="hud-box" id="score">
+      <div class="hud-label">SCORE</div>
+      <div class="hud-value">0</div>
+    </div>
+    <div class="hud-box" id="combo">
+      <div class="hud-label">COMBO</div>
+      <div class="hud-value">×1</div>
+    </div>
+    <div class="hud-box" id="timer">
+      <div class="hud-label">TIME</div>
+      <div class="hud-value">60</div>
+    </div>
+  </div>
+
+  <div id="marker-hint">◇ Aponte para o marcador HIRO ◇</div>
+
+  <!-- ============ TELA FINAL ============ -->
+  <div id="gameover">
+    <h2>FIM DE JOGO</h2>
+    <div class="final-score" id="finalScore">0</div>
+    <p class="rank">RANK: <span id="finalRank">—</span></p>
+    <button id="restartBtn" onclick="location.reload()">JOGAR DE NOVO</button>
+  </div>
+
+  <!-- ============ CENA AR ============ -->
+  <a-scene
+    embedded
+    vr-mode-ui="enabled: false"
+    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+    renderer="logarithmicDepthBuffer: true; precision: medium;"
+    style="display:none;"
+    id="scene">
+
+    <a-assets>
+      <a-mixin id="target-anim"
+        animation__bob="property: position; to: 0 1.4 0; dir: alternate; dur: 800; loop: true; easing: easeInOutSine"
+        animation__spin="property: rotation; to: 0 360 0; dur: 4000; loop: true; easing: linear">
+      </a-mixin>
+    </a-assets>
+
+    <a-marker preset="hiro" id="marker" emitevents="true" smooth="true">
+      <!-- container que vai receber os alvos dinamicamente -->
+      <a-entity id="targets-container"></a-entity>
+
+      <!-- plataforma decorativa -->
+      <a-ring
+        position="0 0.02 0"
+        rotation="-90 0 0"
+        radius-inner="0.8"
+        radius-outer="1.0"
+        color="#00ffc8"
+        opacity="0.5"
+        animation="property: rotation; to: -90 0 360; dur: 8000; loop: true; easing: linear">
+      </a-ring>
+      <a-ring
+        position="0 0.04 0"
+        rotation="-90 0 0"
+        radius-inner="1.1"
+        radius-outer="1.15"
+        color="#ff00aa"
+        opacity="0.4"
+        animation="property: rotation; to: -90 0 -360; dur: 12000; loop: true; easing: linear">
+      </a-ring>
+    </a-marker>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    /* =====================================================
+       NEON HUNT — Lógica do jogo
+       ===================================================== */
+
+    const introEl = document.getElementById('intro');
+    const hudEl = document.getElementById('hud');
+    const sceneEl = document.getElementById('scene');
+    const markerEl = document.getElementById('marker');
+    const containerEl = document.getElementById('targets-container');
+    const scoreValueEl = document.querySelector('#score .hud-value');
+    const comboValueEl = document.querySelector('#combo .hud-value');
+    const timerEl = document.getElementById('timer');
+    const timerValueEl = document.querySelector('#timer .hud-value');
+    const markerHintEl = document.getElementById('marker-hint');
+    const gameoverEl = document.getElementById('gameover');
+    const finalScoreEl = document.getElementById('finalScore');
+    const finalRankEl = document.getElementById('finalRank');
+
+    let score = 0;
+    let combo = 1;
+    let timeLeft = 60;
+    let gameRunning = false;
+    let spawnInterval, timerInterval;
+    let markerVisible = false;
+
+    /* ----------- ÁUDIO (Web Audio API, sem assets externos) ----------- */
+    let audioCtx;
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    function playTone(freq, dur = 0.1, type = 'sine', vol = 0.15) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.value = vol;
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + dur);
+    }
+    const sfx = {
+      hit:    () => { playTone(880, 0.08, 'square', 0.2); setTimeout(() => playTone(1320, 0.1, 'square', 0.15), 50); },
+      combo:  () => { playTone(660, 0.06, 'sawtooth'); setTimeout(() => playTone(990, 0.08, 'sawtooth'), 60); setTimeout(() => playTone(1320, 0.12, 'sawtooth'), 120); },
+      end:    () => { playTone(440, 0.2, 'sine'); setTimeout(() => playTone(330, 0.3, 'sine'), 200); setTimeout(() => playTone(220, 0.5, 'sine'), 500); }
+    };
+
+    /* ----------- HUD ----------- */
+    function updateHUD() {
+      scoreValueEl.textContent = score;
+      comboValueEl.textContent = '×' + combo;
+      timerValueEl.textContent = timeLeft;
+      if (timeLeft <= 10) timerEl.classList.add('danger');
+    }
+
+    /* ----------- SPAWN DE ALVOS ----------- */
+    const SHAPES = ['box', 'octahedron', 'tetrahedron', 'dodecahedron'];
+    const COLORS = ['#ff00aa', '#00ffc8', '#ffee00', '#00aaff', '#ff6600'];
+
+    function spawnTarget() {
+      if (!gameRunning) return;
+
+      const id = 'tgt-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+      const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+      const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+
+      // posições aleatórias sobre o marcador
+      const x = (Math.random() - 0.5) * 1.4;
+      const z = (Math.random() - 0.5) * 1.4;
+      const y = 0.8 + Math.random() * 0.5;
+
+      const entity = document.createElement('a-entity');
+      entity.setAttribute('id', id);
+      entity.setAttribute('position', `${x} ${y} ${z}`);
+      entity.setAttribute('mixin', 'target-anim');
+      entity.classList.add('target', 'clickable');
+
+      // geometria principal
+      const geo = document.createElement(`a-${shape}`);
+      geo.setAttribute('color', color);
+      geo.setAttribute('scale', '0.001 0.001 0.001');
+      geo.setAttribute('material', `emissive: ${color}; emissiveIntensity: 0.6; metalness: 0.3; roughness: 0.4`);
+      geo.setAttribute('animation__appear', 'property: scale; to: 0.25 0.25 0.25; dur: 300; easing: easeOutBack');
+
+      // halo
+      const halo = document.createElement('a-ring');
+      halo.setAttribute('radius-inner', '0.3');
+      halo.setAttribute('radius-outer', '0.35');
+      halo.setAttribute('color', color);
+      halo.setAttribute('opacity', '0.6');
+      halo.setAttribute('rotation', '-90 0 0');
+      halo.setAttribute('position', '0 -0.3 0');
+
+      entity.appendChild(geo);
+      entity.appendChild(halo);
+      containerEl.appendChild(entity);
+
+      // tempo de vida: 2.5s, depois some sozinho
+      const lifetime = setTimeout(() => {
+        if (document.getElementById(id)) {
+          combo = 1; // perder alvo zera combo
+          updateHUD();
+          removeTarget(entity);
+        }
+      }, 2500);
+
+      // clique/toque
+      entity.addEventListener('click', () => {
+        clearTimeout(lifetime);
+        hitTarget(entity);
+      });
+    }
+
+    function hitTarget(entity) {
+      score += 10 * combo;
+      combo = Math.min(combo + 1, 9);
+      sfx.hit();
+      if (combo >= 3 && combo % 3 === 0) sfx.combo();
+      updateHUD();
+      removeTarget(entity, true);
+    }
+
+    function removeTarget(entity, hit = false) {
+      const geo = entity.firstChild;
+      if (hit && geo) {
+        geo.setAttribute('animation__pop', 'property: scale; to: 0.5 0.5 0.5; dur: 200; easing: easeOutQuad');
+        geo.setAttribute('animation__fade', 'property: material.opacity; from: 1; to: 0; dur: 200');
+      }
+      setTimeout(() => entity.parentNode && entity.parentNode.removeChild(entity), hit ? 200 : 0);
+    }
+
+    /* ----------- GAME LOOP ----------- */
+    function startGame() {
+      initAudio();
+      introEl.style.display = 'none';
+      sceneEl.style.display = 'block';
+      hudEl.classList.add('visible');
+      markerHintEl.classList.add('visible');
+
+      gameRunning = true;
+      score = 0;
+      combo = 1;
+      timeLeft = 60;
+      updateHUD();
+
+      // spawn começa quando o marcador for visto
+      timerInterval = setInterval(() => {
+        if (!markerVisible) return; // pausa timer enquanto marcador não estiver visível
+        timeLeft--;
+        updateHUD();
+        if (timeLeft <= 0) endGame();
+      }, 1000);
+    }
+
+    function endGame() {
+      gameRunning = false;
+      clearInterval(spawnInterval);
+      clearInterval(timerInterval);
+      // limpa alvos restantes
+      containerEl.innerHTML = '';
+      sfx.end();
+
+      finalScoreEl.textContent = score;
+      finalRankEl.textContent = getRank(score);
+      gameoverEl.classList.add('visible');
+    }
+
+    function getRank(s) {
+      if (s >= 500) return 'S — LENDÁRIO';
+      if (s >= 350) return 'A — MESTRE';
+      if (s >= 200) return 'B — HABILIDOSO';
+      if (s >= 100) return 'C — APRENDIZ';
+      return 'D — INICIANTE';
+    }
+
+    /* ----------- EVENTOS DO MARCADOR ----------- */
+    markerEl.addEventListener('markerFound', () => {
+      markerVisible = true;
+      markerHintEl.classList.remove('visible');
+      if (gameRunning && !spawnInterval) {
+        // primeiro spawn imediato, depois a cada 1.2s
+        spawnTarget();
+        spawnInterval = setInterval(spawnTarget, 1200);
+      }
+    });
+
+    markerEl.addEventListener('markerLost', () => {
+      markerVisible = false;
+      markerHintEl.classList.add('visible');
+    });
+
+    /* ----------- INÍCIO ----------- */
+    document.getElementById('startBtn').addEventListener('click', startGame);
+  </script>
+</body>
+</html>

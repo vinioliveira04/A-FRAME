@@ -581,6 +581,25 @@
 
     /* ----------- INÍCIO ----------- */
     document.getElementById('startBtn').addEventListener('click', startGame);
+
+    /* ----------- FIX PARA iOS SAFARI -----------
+       O AR.js cria um <video> dinamicamente. No iOS, o vídeo precisa de
+       playsinline + autoplay + muted senão o Safari tenta abrir fullscreen
+       e o stream da câmera nunca aparece no canvas. */
+    const iosVideoFix = new MutationObserver(() => {
+      const v = document.querySelector('video');
+      if (v && !v.dataset.iosFixed) {
+        v.setAttribute('playsinline', '');
+        v.setAttribute('webkit-playsinline', '');
+        v.setAttribute('autoplay', '');
+        v.setAttribute('muted', '');
+        v.muted = true;
+        v.playsInline = true;
+        v.dataset.iosFixed = '1';
+        v.play().catch(() => { /* iOS exige gesto — já temos o clique do botão */ });
+      }
+    });
+    iosVideoFix.observe(document.body, { childList: true, subtree: true });
   </script>
 </body>
 </html>

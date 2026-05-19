@@ -276,7 +276,8 @@
       z-index: 0 !important;
     }
 
-    /* canvas do A-Frame sempre em tela cheia, por cima do vídeo */
+    /* canvas do A-Frame sempre em tela cheia, por cima do vídeo
+       (fundo transparente — iOS Safari renderiza opaco por padrao) */
     .a-canvas {
       position: fixed !important;
       top: 0 !important;
@@ -284,6 +285,8 @@
       width: 100% !important;
       height: 100% !important;
       z-index: 1 !important;
+      background: transparent !important;
+      background-color: transparent !important;
     }
 
     /* cena começa "invisível" mas presente no DOM,
@@ -348,7 +351,7 @@
     embedded
     vr-mode-ui="enabled: false"
     arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
-    renderer="logarithmicDepthBuffer: true; precision: medium;"
+    renderer="logarithmicDepthBuffer: true; precision: medium; alpha: true; antialias: true;"
     id="scene">
 
     <a-assets>
@@ -586,20 +589,36 @@
        O AR.js cria um <video> dinamicamente. No iOS, o vídeo precisa de
        playsinline + autoplay + muted senão o Safari tenta abrir fullscreen
        e o stream da câmera nunca aparece no canvas. */
-    const iosVideoFix = new MutationObserver(() => {
+    function fixVideoElement() {
       const v = document.querySelector('video');
-      if (v && !v.dataset.iosFixed) {
+      if (!v) return false;
+      if (!v.dataset.iosFixed) {
         v.setAttribute('playsinline', '');
         v.setAttribute('webkit-playsinline', '');
         v.setAttribute('autoplay', '');
         v.setAttribute('muted', '');
         v.muted = true;
         v.playsInline = true;
+        v.style.position = 'fixed';
+        v.style.top = '0';
+        v.style.left = '0';
+        v.style.width = '100%';
+        v.style.height = '100%';
+        v.style.objectFit = 'cover';
+        v.style.zIndex = '0';
+        v.style.display = 'block';
+        v.style.visibility = 'visible';
+        v.style.opacity = '1';
         v.dataset.iosFixed = '1';
-        v.play().catch(() => { /* iOS exige gesto — já temos o clique do botão */ });
       }
-    });
+      if (v.paused) v.play().catch(() => {});
+      return true;
+    }
+
+    const iosVideoFix = new MutationObserver(fixVideoElement);
     iosVideoFix.observe(document.body, { childList: true, subtree: true });
+    // fallback: tenta forcar play a cada segundo (iOS pode pausar)
+    setInterval(fixVideoElement, 1000);
   </script>
 </body>
 </html>

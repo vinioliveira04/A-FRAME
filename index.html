@@ -287,6 +287,9 @@
       z-index: 1 !important;
       background: transparent !important;
       background-color: transparent !important;
+      touch-action: none !important;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
     }
 
     /* cena começa "invisível" mas presente no DOM,
@@ -353,12 +356,11 @@
     arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
     renderer="logarithmicDepthBuffer: true; precision: medium; alpha: true; antialias: true;"
     cursor="rayOrigin: mouse; fuse: false"
-    raycaster="objects: .clickable; far: 100; interval: 60"
+    raycaster="objects: .clickable; far: 100; interval: 20"
     id="scene">
 
     <a-assets>
       <a-mixin id="target-anim"
-        animation__bob="property: position; to: 0 1.4 0; dir: alternate; dur: 800; loop: true; easing: easeInOutSine"
         animation__spin="property: rotation; to: 0 360 0; dur: 4000; loop: true; easing: linear">
       </a-mixin>
     </a-assets>
@@ -470,23 +472,31 @@
       entity.setAttribute('mixin', 'target-anim');
       entity.classList.add('target', 'clickable');
 
-      // geometria principal
+      // hitbox invisivel maior que o visivel para clicks mais faceis
+      const hitbox = document.createElement('a-sphere');
+      hitbox.classList.add('clickable');
+      hitbox.setAttribute('radius', '0.45');
+      hitbox.setAttribute('material', 'transparent: true; opacity: 0; depthTest: false');
+      hitbox.setAttribute('visible', 'true');
+
+      // geometria principal (visivel)
       const geo = document.createElement(`a-${shape}`);
       geo.classList.add('clickable');
       geo.setAttribute('color', color);
-      geo.setAttribute('scale', '0.001 0.001 0.001');
+      geo.setAttribute('scale', '0.15 0.15 0.15');
       geo.setAttribute('material', `emissive: ${color}; emissiveIntensity: 0.6; metalness: 0.3; roughness: 0.4`);
-      geo.setAttribute('animation__appear', 'property: scale; to: 0.25 0.25 0.25; dur: 300; easing: easeOutBack');
+      geo.setAttribute('animation__appear', 'property: scale; to: 0.3 0.3 0.3; dur: 200; easing: easeOutBack');
 
       // halo
       const halo = document.createElement('a-ring');
-      halo.setAttribute('radius-inner', '0.3');
-      halo.setAttribute('radius-outer', '0.35');
+      halo.setAttribute('radius-inner', '0.35');
+      halo.setAttribute('radius-outer', '0.4');
       halo.setAttribute('color', color);
       halo.setAttribute('opacity', '0.6');
       halo.setAttribute('rotation', '-90 0 0');
-      halo.setAttribute('position', '0 -0.3 0');
+      halo.setAttribute('position', '0 -0.35 0');
 
+      entity.appendChild(hitbox);
       entity.appendChild(geo);
       entity.appendChild(halo);
       containerEl.appendChild(entity);

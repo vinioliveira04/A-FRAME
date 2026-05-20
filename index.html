@@ -264,16 +264,27 @@
     /* esconde o logo do A-Frame */
     .a-enter-vr { display: none !important; }
 
-    /* garante que o vídeo da câmera (AR.js) preencha a tela */
+    /* garante que o vídeo da câmera (AR.js) preencha a tela
+       (override agressivo: AR.js aplica inline transform + dimensoes em
+       pixels que deixam faixa preta nas bordas em telas portrait) */
     #arjs-video,
     video {
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      min-width: 100vw !important;
+      min-height: 100vh !important;
+      max-width: none !important;
+      max-height: none !important;
       object-fit: cover !important;
       z-index: 0 !important;
+      transform: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
 
     /* canvas do A-Frame sempre em tela cheia, por cima do vídeo
@@ -282,12 +293,17 @@
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
       z-index: 1 !important;
       background: transparent !important;
       background-color: transparent !important;
       touch-action: none !important;
+      transform: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
       -webkit-touch-callout: none;
       -webkit-user-select: none;
     }
@@ -605,33 +621,59 @@
     function fixVideoElement() {
       const v = document.querySelector('video');
       if (!v) return false;
-      if (!v.dataset.iosFixed) {
-        v.setAttribute('playsinline', '');
-        v.setAttribute('webkit-playsinline', '');
-        v.setAttribute('autoplay', '');
-        v.setAttribute('muted', '');
-        v.muted = true;
-        v.playsInline = true;
-        v.style.position = 'fixed';
-        v.style.top = '0';
-        v.style.left = '0';
-        v.style.width = '100%';
-        v.style.height = '100%';
-        v.style.objectFit = 'cover';
-        v.style.zIndex = '0';
-        v.style.display = 'block';
-        v.style.visibility = 'visible';
-        v.style.opacity = '1';
-        v.dataset.iosFixed = '1';
-      }
+      // forca atributos para iOS toda chamada (AR.js sobrescreve eventualmente)
+      v.setAttribute('playsinline', '');
+      v.setAttribute('webkit-playsinline', '');
+      v.setAttribute('autoplay', '');
+      v.setAttribute('muted', '');
+      v.muted = true;
+      v.playsInline = true;
+      // forca preencher a tela toda (AR.js aplica width/height em px inline)
+      v.style.setProperty('position', 'fixed', 'important');
+      v.style.setProperty('top', '0', 'important');
+      v.style.setProperty('left', '0', 'important');
+      v.style.setProperty('right', '0', 'important');
+      v.style.setProperty('bottom', '0', 'important');
+      v.style.setProperty('width', '100vw', 'important');
+      v.style.setProperty('height', '100vh', 'important');
+      v.style.setProperty('min-width', '100vw', 'important');
+      v.style.setProperty('min-height', '100vh', 'important');
+      v.style.setProperty('object-fit', 'cover', 'important');
+      v.style.setProperty('transform', 'none', 'important');
+      v.style.setProperty('margin', '0', 'important');
+      v.style.setProperty('z-index', '0', 'important');
+      v.style.setProperty('display', 'block', 'important');
+      v.style.setProperty('visibility', 'visible', 'important');
+      v.style.setProperty('opacity', '1', 'important');
       if (v.paused) v.play().catch(() => {});
       return true;
     }
 
-    const iosVideoFix = new MutationObserver(fixVideoElement);
+    function fixCanvasElement() {
+      const c = document.querySelector('.a-canvas');
+      if (!c) return false;
+      c.style.setProperty('position', 'fixed', 'important');
+      c.style.setProperty('top', '0', 'important');
+      c.style.setProperty('left', '0', 'important');
+      c.style.setProperty('right', '0', 'important');
+      c.style.setProperty('bottom', '0', 'important');
+      c.style.setProperty('width', '100vw', 'important');
+      c.style.setProperty('height', '100vh', 'important');
+      c.style.setProperty('transform', 'none', 'important');
+      return true;
+    }
+
+    function forceResize() {
+      fixVideoElement();
+      fixCanvasElement();
+      // dispara o resize do A-Frame para recalcular o viewport WebGL
+      window.dispatchEvent(new Event('resize'));
+    }
+
+    const iosVideoFix = new MutationObserver(forceResize);
     iosVideoFix.observe(document.body, { childList: true, subtree: true });
-    // fallback: tenta forcar play a cada segundo (iOS pode pausar)
-    setInterval(fixVideoElement, 1000);
+    setInterval(forceResize, 1000);
+    window.addEventListener('orientationchange', () => setTimeout(forceResize, 200));
   </script>
 </body>
 </html>
